@@ -13,8 +13,14 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
+  Scissors,
+  Files,
+  FileType2,
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
+import PdfOrganizerTool from './tools/PdfOrganizerTool';
+import PdfMergerTool from './tools/PdfMergerTool';
+import DocUtilitiesTool from './tools/DocUtilitiesTool';
 
 const EXAM_PRESETS = [
   { id: 'ssc-photo', label: 'SSC CGL / CHSL — Photo', w: 200, h: 230, maxKb: 50 },
@@ -27,35 +33,40 @@ const EXAM_PRESETS = [
   { id: 'appsc-photo', label: 'APPSC / TSPSC — Photo + Sign', w: 200, h: 260, maxKb: 50 },
 ];
 
+// Extensible Registry: Future document tools can be added right here
+const TOOLS = [
+  { id: 'formatter', label: 'Photo & Sign', icon: ImageIcon },
+  { id: 'organize-pdf', label: 'Organize & Clean PDF', icon: Scissors },
+  { id: 'merge-pdf', label: 'Merge PDFs', icon: Files },
+  { id: 'img-to-pdf', label: 'Image to PDF', icon: FileText },
+  { id: 'doc-tools', label: 'Doc & Text Tools', icon: FileType2 },
+];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('formatter');
 
-  // Image & Controls
+  // Photo Formatter State
   const [sourceImg, setSourceImg] = useState(null);
-  const [origMeta, setOrigMeta] = useState({ w: 0, h: 0, kb: 0 });
   const [rotation, setRotation] = useState(0);
   const [bwMode, setBwMode] = useState(false);
   const [fitMode, setFitMode] = useState('cover');
 
-  // Preset & Custom Settings
   const [selectedPreset, setSelectedPreset] = useState('ssc-photo');
   const [unit, setUnit] = useState('px');
   const [targetW, setTargetW] = useState(200);
   const [targetH, setTargetH] = useState(230);
   const [maxKb, setMaxKb] = useState(50);
 
-  // Clean Progressive Toggles
   const [showStamp, setShowStamp] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
   const [printName, setPrintName] = useState('');
   const [printDate, setPrintDate] = useState('');
 
-  // Output State
   const [outputPreview, setOutputPreview] = useState(null);
   const [outputStats, setOutputStats] = useState({ w: 200, h: 230, kb: 0 });
   const [toast, setToast] = useState(null);
 
-  // PDF Builder State
+  // Image-to-PDF State
   const [pdfImages, setPdfImages] = useState([]);
   const [pdfMaxKb, setPdfMaxKb] = useState(250);
   const [buildingPdf, setBuildingPdf] = useState(false);
@@ -77,7 +88,6 @@ export default function App() {
     const img = new Image();
     img.onload = () => {
       setSourceImg(img);
-      setOrigMeta({ w: img.width, h: img.height, kb: (file.size / 1024).toFixed(1) });
       setRotation(0);
       setBwMode(false);
     };
@@ -219,7 +229,7 @@ export default function App() {
     notify(`Saved ${outputStats.w}×${outputStats.h}px (${outputStats.kb} KB)`);
   };
 
-  // PDF Handlers
+  // Image to PDF Handlers
   const handlePdfFiles = (files) => {
     const valid = Array.from(files).filter((f) => f.type.startsWith('image/'));
     if (!valid.length) return;
@@ -295,27 +305,31 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* MINIMAL TOP BAR */}
+      {/* FULL-WIDTH TOP TOOL BAR */}
       <nav
         style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
           borderBottom: '1px solid rgba(148, 163, 184, 0.12)',
-          backgroundColor: 'rgba(7, 11, 20, 0.85)',
-          backdropFilter: 'blur(12px)',
-          padding: '14px 24px',
+          backgroundColor: 'rgba(7, 11, 20, 0.88)',
+          backdropFilter: 'blur(14px)',
+          padding: '12px 24px',
         }}
       >
         <div
           style={{
-            maxWidth: '920px',
+            maxWidth: '1220px',
             margin: '0 auto',
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '12px',
+            justifyContent: 'space-between',
+            gap: '16px',
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* BRAND */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
             <span
               style={{
                 width: '32px',
@@ -333,67 +347,60 @@ export default function App() {
               UK
             </span>
             <span style={{ fontWeight: '800', fontSize: '1.08rem', letterSpacing: '-0.02em' }}>
-              DocKit <span style={{ color: '#64748b', fontWeight: '500', fontSize: '0.85rem' }}>Pro</span>
+              DocKit <span style={{ color: '#38bdf8', fontWeight: '700', fontSize: '0.82rem' }}>Suite</span>
             </span>
           </div>
 
-          {/* CLEAN PILL SWITCHER */}
+          {/* ALL DOCUMENT TOOLS IN HORIZONTAL BAR */}
           <div
             style={{
-              display: 'inline-flex',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
               backgroundColor: '#0f172a',
-              padding: '4px',
-              borderRadius: '10px',
+              padding: '5px',
+              borderRadius: '12px',
               border: '1px solid rgba(148, 163, 184, 0.15)',
+              overflowX: 'auto',
+              maxWidth: '100%',
             }}
           >
-            <button
-              type="button"
-              onClick={() => setActiveTab('formatter')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                borderRadius: '7px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '0.84rem',
-                backgroundColor: activeTab === 'formatter' ? '#1e293b' : 'transparent',
-                color: activeTab === 'formatter' ? '#38bdf8' : '#94a3b8',
-              }}
-            >
-              <ImageIcon size={15} /> Photo &amp; Sign
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('pdf')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                borderRadius: '7px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '0.84rem',
-                backgroundColor: activeTab === 'pdf' ? '#1e293b' : 'transparent',
-                color: activeTab === 'pdf' ? '#38bdf8' : '#94a3b8',
-              }}
-            >
-              <FileText size={15} /> Image to PDF
-            </button>
+            {TOOLS.map((tool) => {
+              const Icon = tool.icon;
+              const active = activeTab === tool.id;
+              return (
+                <button
+                  key={tool.id}
+                  type="button"
+                  onClick={() => setActiveTab(tool.id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: active ? '700' : '600',
+                    fontSize: '0.83rem',
+                    whiteSpace: 'nowrap',
+                    backgroundColor: active ? 'rgba(56, 189, 248, 0.16)' : 'transparent',
+                    color: active ? '#38bdf8' : '#94a3b8',
+                    transition: 'all 0.18s ease',
+                  }}
+                >
+                  <Icon size={15} /> {tool.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </nav>
 
-      {/* MAIN STUDIO CONTAINER */}
-      <main style={{ flex: 1, maxWidth: '880px', width: '100%', margin: '0 auto', padding: '36px 20px 64px' }}>
+      {/* ACTIVE TOOL WORKSPACE */}
+      <main style={{ flex: 1, maxWidth: '1060px', width: '100%', margin: '0 auto', padding: '36px 20px 64px' }}>
         {activeTab === 'formatter' && (
-          <div>
-            {/* CLEAN TITLE */}
+          <div style={{ maxWidth: '880px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '28px' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-0.02em' }}>
                 Govt Exam Photo &amp; Signature Formatter
@@ -403,7 +410,6 @@ export default function App() {
               </p>
             </div>
 
-            {/* STEP 1: UPLOAD OR LIVE WORKSPACE */}
             <input
               ref={fileInputRef}
               type="file"
@@ -460,7 +466,7 @@ export default function App() {
                   alignItems: 'start',
                 }}
               >
-                {/* LEFT: CLEAN PREVIEW CARD */}
+                {/* LEFT PREVIEW */}
                 <div className="glass-card" style={{ padding: '20px' }}>
                   <div
                     style={{
@@ -514,7 +520,6 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* COMPACT TOOLBAR */}
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
                     <button
                       type="button"
@@ -577,7 +582,6 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* OUTPUT METRICS */}
                   <div
                     className="mono"
                     style={{
@@ -599,9 +603,8 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* RIGHT: CLEAN CONTROLS CARD */}
+                {/* RIGHT CONTROLS */}
                 <div className="glass-card" style={{ padding: '22px' }}>
-                  {/* EXAM PRESET DROPDOWN */}
                   <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                     Exam Preset
                   </label>
@@ -618,7 +621,6 @@ export default function App() {
                     <option value="custom">Custom Dimensions &amp; KB</option>
                   </select>
 
-                  {/* QUICK 3 PILLS */}
                   <div style={{ display: 'flex', gap: '6px', marginBottom: '18px' }}>
                     {[
                       { id: 'ssc-photo', label: 'SSC Photo' },
@@ -650,7 +652,6 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* COLLAPSIBLE 1: NAME & DATE STAMP */}
                   <div
                     style={{
                       borderTop: '1px solid rgba(148, 163, 184, 0.12)',
@@ -697,7 +698,6 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* COLLAPSIBLE 2: CUSTOM SIZE & KB */}
                   <div
                     style={{
                       borderTop: '1px solid rgba(148, 163, 184, 0.12)',
@@ -771,7 +771,6 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* PRIMARY DOWNLOAD BUTTON */}
                   <button
                     type="button"
                     onClick={downloadImage}
@@ -800,8 +799,11 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: IMAGE TO PDF */}
-        {activeTab === 'pdf' && (
+        {activeTab === 'organize-pdf' && <PdfOrganizerTool notify={notify} />}
+
+        {activeTab === 'merge-pdf' && <PdfMergerTool notify={notify} />}
+
+        {activeTab === 'img-to-pdf' && (
           <div style={{ maxWidth: '600px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-0.02em' }}>
@@ -932,6 +934,8 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {activeTab === 'doc-tools' && <DocUtilitiesTool notify={notify} />}
       </main>
 
       {/* CLEAN FOOTER */}
@@ -944,7 +948,7 @@ export default function App() {
           fontSize: '0.82rem',
         }}
       >
-        UK WEBS Ecosystem • Built by Uday Bhaskar N
+        UK WEBS Free Document Suite • 100% Client-Side Privacy • Built by Uday Bhaskar N
       </footer>
 
       {/* TOAST */}
